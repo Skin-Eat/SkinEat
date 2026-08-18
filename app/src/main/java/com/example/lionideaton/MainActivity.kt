@@ -46,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -133,6 +134,12 @@ fun SkinBasketApp() {
     val userProfileViewModel: UserProfileViewModel = viewModel()
     val isLoggedIn by userProfileViewModel.isLoggedIn.collectAsState()
     val onboardingCompleted by userProfileViewModel.onboardingCompleted.collectAsState()
+    // 로그인 상태로 바뀔 때(로그인 직후, 또는 이미 로그인된 채로 재진입) 실제 식사 기록을
+    // 백엔드에서 불러온다 — 안 그러면 데모 시드가 그대로 남아 방금 기록한 식사가 사라진
+    // 것처럼 보인다.
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) mealLogViewModel.loadFromBackend()
+    }
     val isHomeRoute = currentRoute == SkinBasketDestination.Home.route
     val showAuth = isHomeRoute && !isLoggedIn
     val showOnboarding = isHomeRoute && isLoggedIn && !onboardingCompleted
@@ -241,7 +248,10 @@ fun SkinBasketApp() {
                 )
             }
             composable(SkinBasketDestination.Cart.route) {
-                CartScreen(cartViewModel = cartViewModel)
+                CartScreen(
+                    cartViewModel = cartViewModel,
+                    onRecipeClick = { navController.navigate(SkinBasketDestination.Recipe.route) }
+                )
             }
             composable(SkinBasketDestination.Recipe.route) { RecipeScreen() }
             composable(SkinBasketDestination.SkinLog.route) { SkinLogScreen(skinLogViewModel = skinLogViewModel) }

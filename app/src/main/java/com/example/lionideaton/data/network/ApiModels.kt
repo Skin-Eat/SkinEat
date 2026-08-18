@@ -62,6 +62,16 @@ data class MealRequest(
     val items: List<MealItemRequest>
 )
 
-// 응답 본문은 id만 있으면 충분 — 앱은 로컬 상태를 별도로 갱신하고, 나머지 필드(Gson이
-// 모르는 필드)는 무시됨.
-data class MealLogOut(val id: Int)
+data class MealFoodOut(val id: Int, val name: String)
+
+data class MealItemDetailOut(val id: Int, val portionRatio: Double, val isAiDetected: Boolean, val food: MealFoodOut)
+
+// POST /meals 응답은 id만 쓰지만, GET /meals 히스토리 조회에도 같은 타입을 재사용한다 —
+// Gson은 클래스에 없는 필드를 그냥 무시하니 하나로 충분하다.
+data class MealLogOut(
+    val id: Int,
+    val eatenAt: String? = null,
+    val mealType: String? = null,
+    val photoUrl: String? = null,
+    val items: List<MealItemDetailOut> = emptyList()
+)

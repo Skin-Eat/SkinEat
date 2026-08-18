@@ -255,8 +255,10 @@ private fun HomeDayContent(
     // in the schema yet, so this is only a rough stand-in, not a measured value.
     val hydrationIndex = (70 + dayEntries.size * 5).coerceAtMost(100)
 
+    val hasEntries = dayEntries.isNotEmpty()
+
     val comment = when {
-        dayEntries.isEmpty() -> "이 날 기록된 식사가 없어요."
+        !hasEntries -> "이 날 기록된 식사가 없어요."
         hasInflammationConcern -> "이 날 포화지방·당류가 높은 식사가 있었어요. 채소와 오메가3 공급 식품을 함께 섭취해보세요."
         else -> "이 날 섭취한 식단이 전반적으로 균형 잡혀 있어요."
     }
@@ -288,6 +290,7 @@ private fun HomeDayContent(
             skinType = profile.skinType?.let { "${it.label} 피부" } ?: "피부타입 미설정",
             score = score,
             comment = comment,
+            hasEntries = hasEntries,
             onClick = onSkinScoreClick
         )
 
@@ -304,13 +307,19 @@ private fun HomeDayContent(
             hydration = hydrationIndex
         )
 
-        SkinFoodScoreCard(score = score, previousScore = previousScore, hasInflammationConcern = hasInflammationConcern, antioxidant = antioxidantIndex)
+        SkinFoodScoreCard(
+            score = score,
+            previousScore = previousScore,
+            hasInflammationConcern = hasInflammationConcern,
+            antioxidant = antioxidantIndex,
+            hasEntries = hasEntries
+        )
 
         if (dayItems.isNotEmpty()) {
             FoodNutrientDetailSection(items = dayItems)
         }
 
-        DailyFeedbackCard(hasInflammationConcern = hasInflammationConcern, antioxidant = antioxidantIndex)
+        DailyFeedbackCard(hasInflammationConcern = hasInflammationConcern, antioxidant = antioxidantIndex, hasEntries = hasEntries)
 
         RecommendedIngredientsRow()
 
@@ -320,7 +329,7 @@ private fun HomeDayContent(
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun SkinScoreCard(skinType: String, score: Int, comment: String, onClick: () -> Unit = {}) {
+private fun SkinScoreCard(skinType: String, score: Int, comment: String, hasEntries: Boolean, onClick: () -> Unit = {}) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -343,7 +352,7 @@ private fun SkinScoreCard(skinType: String, score: Int, comment: String, onClick
             }
             Spacer(modifier = Modifier.height(20.dp))
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                SkinScoreGauge(score = score, maxScore = 100, modifier = Modifier.size(160.dp))
+                SkinScoreGauge(score = score, maxScore = 100, hasData = hasEntries, modifier = Modifier.size(160.dp))
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
@@ -370,8 +379,11 @@ private fun SkinTypeTag(text: String) {
 }
 
 @Composable
-private fun SkinScoreGauge(score: Int, maxScore: Int, modifier: Modifier = Modifier) {
-    val progress = (score.toFloat() / maxScore).coerceIn(0f, 1f)
+private fun SkinScoreGauge(score: Int, maxScore: Int, hasData: Boolean, modifier: Modifier = Modifier) {
+    // 기록이 없는 날은 SkinScoreCalculator가 기본값(BASE_SCORE)을 돌려주는데, 이걸 그대로
+    // 숫자로 보여주면 마치 실제로 계산된 점수처럼 보여 부자연스럽다 — 그래서 게이지를
+    // 채우지 않고 숫자 대신 "기록 없음"으로 표시한다.
+    val progress = if (hasData) (score.toFloat() / maxScore).coerceIn(0f, 1f) else 0f
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokeWidth = 14.dp.toPx()
@@ -384,25 +396,37 @@ private fun SkinScoreGauge(score: Int, maxScore: Int, modifier: Modifier = Modif
                 useCenter = false,
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
-            drawArc(
-                brush = Brush.sweepGradient(
-                    colors = listOf(GaugeOrange, GaugeRed),
-                    center = Offset(size.width / 2f, size.height / 2f)
-                ),
-                startAngle = startAngle,
-                sweepAngle = maxSweep * progress,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
+            if (hasData) {
+                drawArc(
+                    brush = Brush.sweepGradient(
+                        colors = listOf(GaugeOrange, GaugeRed),
+                        center = Offset(size.width / 2f, size.height / 2f)
+                    ),
+                    startAngle = startAngle,
+                    sweepAngle = maxSweep * progress,
+                    useCenter = false,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                )
+            }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "$score",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Text(text = "/ $maxScore 점", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            if (hasData) {
+                Text(
+                    text = "$score",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary
+                )
+                Text(text = "/ $maxScore 점", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            } else {
+                Text(
+                    text = "-",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Bold,
+                    color = TextSecondary
+                )
+                Text(text = "기록 없음", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
         }
     }
 }
@@ -606,7 +630,13 @@ private fun NutrientStatusBar(label: String, progress: Float, statusText: String
 }
 
 @Composable
-private fun SkinFoodScoreCard(score: Int, previousScore: Int, hasInflammationConcern: Boolean, antioxidant: Int) {
+private fun SkinFoodScoreCard(
+    score: Int,
+    previousScore: Int,
+    hasInflammationConcern: Boolean,
+    antioxidant: Int,
+    hasEntries: Boolean
+) {
     val grade = gradeFor(score)
     val delta = score - previousScore
     val deltaText = when {
@@ -625,25 +655,44 @@ private fun SkinFoodScoreCard(score: Int, previousScore: Int, hasInflammationCon
         Spacer(modifier = Modifier.height(12.dp))
         Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = PositiveTagBackground, modifier = Modifier.size(56.dp)) {
+                Surface(
+                    shape = CircleShape,
+                    color = if (hasEntries) PositiveTagBackground else SurfaceMuted,
+                    modifier = Modifier.size(56.dp)
+                ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(text = grade, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = CoralPrimary)
+                        Text(
+                            text = if (hasEntries) grade else "-",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = if (hasEntries) CoralPrimary else TextSecondary
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column {
-                    Text(text = "오늘 식단 피부 점수 ${score}점", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (antioxidant >= 70) {
-                            MiniStatusChip(text = "✓ 항산화 우수", background = PositiveTagBackground, textColor = PositiveTagText)
+                    Text(
+                        text = if (hasEntries) "오늘 식단 피부 점수 ${score}점" else "아직 기록된 식사가 없어요",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                    if (hasEntries) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            if (antioxidant >= 70) {
+                                MiniStatusChip(text = "✓ 항산화 우수", background = PositiveTagBackground, textColor = PositiveTagText)
+                            }
+                            if (hasInflammationConcern) {
+                                MiniStatusChip(text = "⚠ 자극 성분 주의", background = WarningTagBackground, textColor = WarningTagText)
+                            }
                         }
-                        if (hasInflammationConcern) {
-                            MiniStatusChip(text = "⚠ 자극 성분 주의", background = WarningTagBackground, textColor = WarningTagText)
-                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = deltaText, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                    } else {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(text = "식사를 기록하면 점수가 계산돼요", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = deltaText, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                 }
             }
         }
@@ -736,17 +785,24 @@ private fun nutrientTagsFor(item: MealItem): List<String> {
 }
 
 @Composable
-private fun DailyFeedbackCard(hasInflammationConcern: Boolean, antioxidant: Int) {
-    val feedback = buildString {
-        if (hasInflammationConcern) {
-            append("오늘 당류·포화지방이 높은 식사가 있어 피부에 자극이 될 수 있어요. ")
-        } else {
-            append("오늘은 전반적으로 균형 잡힌 식사를 하셨어요. ")
+private fun DailyFeedbackCard(hasInflammationConcern: Boolean, antioxidant: Int, hasEntries: Boolean) {
+    // 기록이 없으면 hasInflammationConcern=false, antioxidant=0으로 계산돼서 "균형 잡힌
+    // 식사를 하셨어요" 같은 문구가 그대로 나가버린다 — 먹은 게 없는데 잘 먹었다고 하는 셈이라
+    // 기록 없음 상태를 따로 분기한다.
+    val feedback = if (!hasEntries) {
+        "아직 오늘 기록된 식사가 없어요. 식사를 기록하면 피부 코치가 오늘의 식습관을 분석해드려요."
+    } else {
+        buildString {
+            if (hasInflammationConcern) {
+                append("오늘 당류·포화지방이 높은 식사가 있어 피부에 자극이 될 수 있어요. ")
+            } else {
+                append("오늘은 전반적으로 균형 잡힌 식사를 하셨어요. ")
+            }
+            if (antioxidant >= 70) {
+                append("항산화 식품도 잘 챙기셨네요! ")
+            }
+            append("남은 하루는 채소와 수분 섭취를 늘려보세요.")
         }
-        if (antioxidant >= 70) {
-            append("항산화 식품도 잘 챙기셨네요! ")
-        }
-        append("남은 하루는 채소와 수분 섭취를 늘려보세요.")
     }
 
     Column {
@@ -768,7 +824,11 @@ private fun DailyFeedbackCard(hasInflammationConcern: Boolean, antioxidant: Int)
                         Text(text = "💡", style = MaterialTheme.typography.bodyMedium)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "저녁 식사 전 물 한 잔으로 나트륨 배출을 도와보세요.",
+                            text = if (hasEntries) {
+                                "저녁 식사 전 물 한 잔으로 나트륨 배출을 도와보세요."
+                            } else {
+                                "지금 바로 첫 끼니를 기록해보세요."
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary
                         )

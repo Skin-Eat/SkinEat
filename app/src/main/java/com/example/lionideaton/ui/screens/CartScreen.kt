@@ -56,7 +56,7 @@ private val suggestedMealPlans = listOf(
 )
 
 @Composable
-fun CartScreen(modifier: Modifier = Modifier, cartViewModel: CartViewModel) {
+fun CartScreen(modifier: Modifier = Modifier, cartViewModel: CartViewModel, onRecipeClick: () -> Unit = {}) {
     val cartItems by cartViewModel.items.collectAsState()
     val total = cartItems.sumOf { it.unitPrice * it.quantity }
     val context = LocalContext.current
@@ -83,12 +83,12 @@ fun CartScreen(modifier: Modifier = Modifier, cartViewModel: CartViewModel) {
             }
         }
 
-        MealPlanPreviewCard(plans = suggestedMealPlans)
+        MealPlanPreviewCard(plans = suggestedMealPlans, onRecipeClick = onRecipeClick)
 
-        ShoppingIntegrationCard(
-            onClick = {
-                val query = cartItems.joinToString(" ") { it.name }
-                val url = "https://www.coupang.com/np/search?q=${URLEncoder.encode(query, "UTF-8")}"
+        ShoppingIntegrationSection(
+            items = cartItems,
+            onSearch = { store, query ->
+                val url = shoppingSearchUrl(store, query)
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             }
         )
@@ -175,7 +175,7 @@ private fun CartItemRow(item: CartItem, onIncrease: () -> Unit, onDecrease: () -
 }
 
 @Composable
-private fun MealPlanPreviewCard(plans: List<SuggestedMealPlan>) {
+private fun MealPlanPreviewCard(plans: List<SuggestedMealPlan>, onRecipeClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -206,7 +206,10 @@ private fun MealPlanPreviewCard(plans: List<SuggestedMealPlan>) {
             }
             Divider(color = SurfaceMuted)
             Spacer(modifier = Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.clickable(onClick = onRecipeClick),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = "조리법 미리 확인하기",
                     style = MaterialTheme.typography.bodyMedium,
@@ -225,39 +228,74 @@ private fun MealPlanPreviewCard(plans: List<SuggestedMealPlan>) {
     }
 }
 
-// Opens a Coupang search for the cart's ingredient names — a browse-only deep link (no API,
-// no cart mutation). Real checkout/payment stays out of scope per the spec's own exclusions.
+// 여러 재료를 한 번에 합쳐서 검색하면(예: "연어 브로콜리 토마토") 쇼핑몰 검색 결과가
+// 뒤죽박죽 나와서 쓸모가 없어, 재료별로 따로 검색 링크를 연다 — 브라우즈 전용 딥링크(API
+// 연동/장바구니 반영 없음). 실제 결제는 스펙 범위 밖.
+private enum class ShoppingStore(val label: String) {
+    COUPANG("쿠팡"),
+    NAVER("네이버 스토어")
+}
+
+private fun shoppingSearchUrl(store: ShoppingStore, query: String): String {
+    val encoded = URLEncoder.encode(query, "UTF-8")
+    return when (store) {
+        ShoppingStore.COUPANG -> "https://www.coupang.com/np/search?q=$encoded"
+        ShoppingStore.NAVER -> "https://search.shopping.naver.com/search/all?query=$encoded"
+    }
+}
+
 @Composable
-private fun ShoppingIntegrationCard(onClick: () -> Unit) {
+private fun ShoppingIntegrationSection(items: List<CartItem>, onSearch: (ShoppingStore, String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            text = "재료별로 구매처 찾기",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary
+        )
+        items.forEach { item ->
+            IngredientShoppingCard(
+                name = item.name,
+                onCoupangClick = { onSearch(ShoppingStore.COUPANG, item.name) },
+                onNaverClick = { onSearch(ShoppingStore.NAVER, item.name) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun IngredientShoppingCard(name: String, onCoupangClick: () -> Unit, onNaverClick: () -> Unit) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         color = SurfaceMuted
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(imageVector = Icons.Filled.Storefront, contentDescription = null, tint = TextSecondary)
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "쿠팡에서 재료 구매하기",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "담은 재료로 쿠팡 검색 결과를 열어요",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-            Icon(imageVector = Icons.Filled.OpenInNew, contentDescription = null, tint = TextSecondary)
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(text = name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Spacer(modifier = Modifier.height(8.dp))
+            ShoppingStoreRow(label = "쿠팡에서 검색", onClick = onCoupangClick)
+            Spacer(modifier = Modifier.height(6.dp))
+            ShoppingStoreRow(label = "네이버 스토어에서 검색", onClick = onNaverClick)
         }
+    }
+}
+
+@Composable
+private fun ShoppingStoreRow(label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(imageVector = Icons.Filled.Storefront, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(imageVector = Icons.Filled.OpenInNew, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
     }
 }

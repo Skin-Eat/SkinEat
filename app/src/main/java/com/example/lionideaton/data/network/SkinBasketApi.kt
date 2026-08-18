@@ -37,4 +37,7 @@ interface SkinBasketApi {
 
     @POST("meals")
     suspend fun registerMeal(@Body body: MealRequest): Envelope<MealLogOut>
+
+    @GET("meals")
+    suspend fun getMeals(): Envelope<List<MealLogOut>>
 }

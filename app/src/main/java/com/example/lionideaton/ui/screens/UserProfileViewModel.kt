@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import retrofit2.HttpException
 
 // AuthScreen이 로딩/에러를 보여줄 수 있게 하는 상태. Idle -> Loading -> (Success | Error).
 // Success/Error를 본 화면은 resetAuthState()를 불러서 다시 Idle로 돌려놔야 다음 시도 때
@@ -49,6 +51,19 @@ class UserProfileViewModel : ViewModel() {
         _authState.value = AuthUiState.Idle
     }
 
+    // HttpException(4xx/5xx)엔 우리 envelope의 {error:{message}}가 body로 들어있는데, 기본
+    // e.message는 "HTTP 400 Bad Request"처럼 원인을 알 수 없는 문자열이라 이걸 직접 꺼낸다.
+    private fun errorMessageFrom(e: Exception): String {
+        if (e is HttpException) {
+            val body = e.response()?.errorBody()?.string()
+            val serverMessage = body?.let {
+                runCatching { JSONObject(it).optJSONObject("error")?.optString("message") }.getOrNull()
+            }
+            if (!serverMessage.isNullOrBlank()) return serverMessage
+        }
+        return "네트워크 오류: ${e.message ?: "서버에 연결할 수 없어요"}"
+    }
+
     fun signUp(email: String, password: String, nickname: String) {
         viewModelScope.launch {
             _authState.value = AuthUiState.Loading
@@ -66,7 +81,7 @@ class UserProfileViewModel : ViewModel() {
                 _isLoggedIn.value = true
                 _authState.value = AuthUiState.Success
             } catch (e: Exception) {
-                _authState.value = AuthUiState.Error("네트워크 오류: ${e.message ?: "서버에 연결할 수 없어요"}")
+                _authState.value = AuthUiState.Error(errorMessageFrom(e))
             }
         }
     }
@@ -94,7 +109,7 @@ class UserProfileViewModel : ViewModel() {
                 _isLoggedIn.value = true
                 _authState.value = AuthUiState.Success
             } catch (e: Exception) {
-                _authState.value = AuthUiState.Error("네트워크 오류: ${e.message ?: "서버에 연결할 수 없어요"}")
+                _authState.value = AuthUiState.Error(errorMessageFrom(e))
             }
         }
     }

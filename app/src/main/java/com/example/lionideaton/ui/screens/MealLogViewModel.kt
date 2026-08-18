@@ -10,6 +10,7 @@ import com.example.lionideaton.data.model.MealLogEntry
 import com.example.lionideaton.data.model.MealType
 import com.example.lionideaton.data.network.FoodCreateRequest
 import com.example.lionideaton.data.network.MealItemRequest
+import com.example.lionideaton.data.network.MealLogOut
 import com.example.lionideaton.data.network.MealRequest
 import com.example.lionideaton.data.network.NetworkModule
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,8 +32,15 @@ class MealLogViewModel : ViewModel() {
     private val _entries = MutableStateFlow(seedDemoHistory())
     val entries: StateFlow<List<MealLogEntry>> = _entries.asStateFlow()
 
-    fun registerMeal(foodName: String, servingCount: Int, eatenAt: LocalDateTime = LocalDateTime.now()) {
-        val food = FoodSeedData.findByName(foodName) ?: unknownFood(foodName)
+    fun registerMeal(
+        foodName: String,
+        servingCount: Int,
+        customFood: Food? = null,
+        eatenAt: LocalDateTime = LocalDateTime.now()
+    ) {
+        // customFood는 사용자가 "직접 추가하기"로 영양정보를 입력한 신규 메뉴 — 있으면 그걸
+        // 그대로 쓰고, 없으면 기존처럼 로컬 시드에서 찾아보고 그마저 없으면 0으로 채운다.
+        val food = customFood ?: (FoodSeedData.findByName(foodName) ?: unknownFood(foodName))
         val entry = MealLogEntry(
             id = nextId++,
             eatenAt = eatenAt,
@@ -81,6 +89,39 @@ class MealLogViewModel : ViewModel() {
             )
         ).data
         return created?.id ?: error("food 생성 실패")
+    }
+
+    // 로그인 직후(MainActivity에서 isLoggedIn 전환 시 호출) 백엔드에 실제로 쌓인 기록을
+    // 불러온다. 이게 없으면 앱을 껐다 켤 때마다(authToken이 메모리에만 있어 재로그인하면서)
+    // _entries가 seedDemoHistory()로 다시 초기화돼 방금 기록한 식사가 사라진 것처럼 보인다.
+    fun loadFromBackend() {
+        if (NetworkModule.authToken == null) return
+        viewModelScope.launch {
+            try {
+                val backendEntries = NetworkModule.api.getMeals().data.orEmpty().mapNotNull { it.toEntryOrNull() }
+                // 실제 기록이 하나도 없는 신규 계정은 데모 시드를 그대로 둬서 화면이 텅 비지
+                // 않게 하고, 하나라도 있으면 그게 진짜 상태이니 데모를 완전히 대체한다.
+                if (backendEntries.isNotEmpty()) {
+                    _entries.value = backendEntries
+                }
+            } catch (e: Exception) {
+                // 조회 실패해도 기존 상태(데모 시드 또는 이전 값)를 유지해 화면은 계속 동작.
+            }
+        }
+    }
+
+    private fun MealLogOut.toEntryOrNull(): MealLogEntry? {
+        val eatenAtValue = eatenAt ?: return null
+        val parsedTime = runCatching { LocalDateTime.parse(eatenAtValue) }.getOrNull() ?: return null
+        val parsedMealType = mealType?.let { runCatching { MealType.valueOf(it) }.getOrNull() }
+            ?: inferMealType(parsedTime.toLocalTime())
+        val mappedItems = items.map { item ->
+            MealItem(
+                food = FoodSeedData.findByName(item.food.name) ?: unknownFood(item.food.name),
+                portionRatio = item.portionRatio
+            )
+        }
+        return MealLogEntry(id = id.toLong(), eatenAt = parsedTime, mealType = parsedMealType, items = mappedItems)
     }
 
     fun todayEntries(): List<MealLogEntry> = entriesForDate(LocalDate.now())
