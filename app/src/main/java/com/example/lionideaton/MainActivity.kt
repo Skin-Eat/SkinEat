@@ -138,7 +138,14 @@ fun SkinBasketApp() {
     // 백엔드에서 불러온다 — 안 그러면 데모 시드가 그대로 남아 방금 기록한 식사가 사라진
     // 것처럼 보인다.
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) mealLogViewModel.loadFromBackend()
+        if (isLoggedIn) {
+            mealLogViewModel.loadFromBackend()
+        } else {
+            navController.navigate(SkinBasketDestination.Home.route) {
+                popUpTo(SkinBasketDestination.Home.route) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
     }
     val isHomeRoute = currentRoute == SkinBasketDestination.Home.route
     val showAuth = isHomeRoute && !isLoggedIn

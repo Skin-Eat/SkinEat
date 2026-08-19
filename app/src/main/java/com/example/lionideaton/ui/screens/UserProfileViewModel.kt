@@ -114,6 +114,14 @@ class UserProfileViewModel : ViewModel() {
         }
     }
 
+    fun logout() {
+        NetworkModule.authToken = null
+        _profile.value = UserProfile()
+        _onboardingCompleted.value = false
+        _authState.value = AuthUiState.Idle
+        _isLoggedIn.value = false
+    }
+
     fun completeOnboarding(
         skinType: SkinType,
         concerns: List<SkinConcern>,

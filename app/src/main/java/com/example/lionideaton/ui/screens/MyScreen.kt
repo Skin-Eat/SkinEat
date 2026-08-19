@@ -165,6 +165,17 @@ fun MyScreen(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             myPageListItems.forEach { item -> MyPageListRow(item) }
         }
+
+        OutlinedButton(
+            onClick = { userProfileViewModel.logout() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = WarningTagText)
+        ) {
+            Text(text = "로그아웃", fontWeight = FontWeight.SemiBold)
+        }
     }
 }
 
