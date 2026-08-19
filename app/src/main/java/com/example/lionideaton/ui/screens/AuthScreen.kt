@@ -143,14 +143,14 @@ fun AuthScreen(
                 Brush.verticalGradient(
                     colors = listOf(PeachSecondary, CreamBackground, CreamBackground)
                 )
-            )
+            ),
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp)
-                .padding(top = 56.dp, bottom = 32.dp),
+                .padding(horizontal = 28.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
@@ -171,7 +171,7 @@ fun AuthScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "Skin Basket",
+                text = "SkinEat",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary,

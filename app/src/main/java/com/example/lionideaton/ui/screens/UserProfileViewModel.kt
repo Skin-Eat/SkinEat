@@ -98,9 +98,10 @@ class UserProfileViewModel(application: Application) : AndroidViewModel(applicat
 
     fun logout() {
         NetworkModule.authToken = null
-        _isLoggedIn.value = false
-        _onboardingCompleted.value = false
         _profile.value = UserProfile()
+        _onboardingCompleted.value = false
+        _authState.value = AuthUiState.Idle
+        _isLoggedIn.value = false
         viewModelScope.launch { sessionStore.clearToken() }
     }
 

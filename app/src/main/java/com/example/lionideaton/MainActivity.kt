@@ -144,6 +144,11 @@ fun SkinBasketApp() {
         if (isLoggedIn) {
             mealLogViewModel.loadFromBackend()
             cartViewModel.loadFromBackend()
+        } else {
+            navController.navigate(SkinBasketDestination.Home.route) {
+                popUpTo(SkinBasketDestination.Home.route) { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
     val isHomeRoute = currentRoute == SkinBasketDestination.Home.route
@@ -275,13 +280,7 @@ fun SkinBasketApp() {
                     userProfileViewModel = userProfileViewModel,
                     mealLogViewModel = mealLogViewModel,
                     onSkinPhotoHistoryClick = { navController.navigate(SkinBasketDestination.SkinPhotoHistory.route) },
-                    onMealLogHistoryClick = { navController.navigate(SkinBasketDestination.MealLogHistory.route) },
-                    onLogout = {
-                        userProfileViewModel.logout()
-                        navController.navigate(SkinBasketDestination.Home.route) {
-                            popUpTo(SkinBasketDestination.Home.route) { inclusive = true }
-                        }
-                    }
+                    onMealLogHistoryClick = { navController.navigate(SkinBasketDestination.MealLogHistory.route) }
                 )
             }
             composable(SkinBasketDestination.SkinPhotoHistory.route) {
