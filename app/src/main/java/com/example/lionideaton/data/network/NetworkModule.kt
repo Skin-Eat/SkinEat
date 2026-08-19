@@ -13,8 +13,8 @@ object NetworkModule {
     private const val BASE_URL = "http://1.201.116.202:8000/"
 
     // 로그인/회원가입 응답의 accessToken을 여기 저장해두고, 이후 모든 요청에 자동으로
-    // Authorization 헤더로 붙인다. 프로세스 메모리에만 있어서 앱을 완전히 껐다 켜면
-    // 다시 로그인해야 함 — DataStore 등 영속 저장은 아직 안 함(TODO).
+    // Authorization 헤더로 붙인다. 이 필드 자체는 프로세스 메모리에만 있지만, 영속 저장은
+    // UserProfileViewModel이 SessionStore를 통해 앱 시작 시 여기로 복원해준다.
     @Volatile
     var authToken: String? = null
 

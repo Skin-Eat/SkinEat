@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -32,6 +33,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -134,16 +136,23 @@ fun SkinBasketApp() {
     val userProfileViewModel: UserProfileViewModel = viewModel()
     val isLoggedIn by userProfileViewModel.isLoggedIn.collectAsState()
     val onboardingCompleted by userProfileViewModel.onboardingCompleted.collectAsState()
-    // 로그인 상태로 바뀔 때(로그인 직후, 또는 이미 로그인된 채로 재진입) 실제 식사 기록을
-    // 백엔드에서 불러온다 — 안 그러면 데모 시드가 그대로 남아 방금 기록한 식사가 사라진
-    // 것처럼 보인다.
+    val sessionRestoring by userProfileViewModel.sessionRestoring.collectAsState()
+    // 로그인 상태로 바뀔 때(로그인 직후, 앱 재시작 후 세션 복원, 또는 이미 로그인된 채로
+    // 재진입) 실제 식사 기록/장바구니를 백엔드에서 불러온다 — 안 그러면 데모 시드/빈 카트가
+    // 그대로 남아 방금 기록한 식사나 저장해둔 장바구니가 사라진 것처럼 보인다.
     LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) mealLogViewModel.loadFromBackend()
+        if (isLoggedIn) {
+            mealLogViewModel.loadFromBackend()
+            cartViewModel.loadFromBackend()
+        }
     }
     val isHomeRoute = currentRoute == SkinBasketDestination.Home.route
-    val showAuth = isHomeRoute && !isLoggedIn
-    val showOnboarding = isHomeRoute && isLoggedIn && !onboardingCompleted
-    val hideChrome = showAuth || showOnboarding
+    // 세션 복원(저장된 토큰으로 재로그인 시도) 중엔 아직 로그인 여부를 모르니, 로그인 화면이
+    // 잠깐 보였다 사라지는 깜빡임을 막기 위해 로딩 상태로 취급한다.
+    val showSplash = isHomeRoute && sessionRestoring
+    val showAuth = isHomeRoute && !sessionRestoring && !isLoggedIn
+    val showOnboarding = isHomeRoute && !sessionRestoring && isLoggedIn && !onboardingCompleted
+    val hideChrome = showSplash || showAuth || showOnboarding
     var showCameraSheet by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -221,6 +230,7 @@ fun SkinBasketApp() {
         ) {
             composable(SkinBasketDestination.Home.route) {
                 when {
+                    sessionRestoring -> SessionRestoringSplash()
                     !isLoggedIn -> AuthScreen(userProfileViewModel = userProfileViewModel)
                     !onboardingCompleted -> OnboardingScreen(userProfileViewModel = userProfileViewModel)
                     else -> HomeScreen(
@@ -265,7 +275,13 @@ fun SkinBasketApp() {
                     userProfileViewModel = userProfileViewModel,
                     mealLogViewModel = mealLogViewModel,
                     onSkinPhotoHistoryClick = { navController.navigate(SkinBasketDestination.SkinPhotoHistory.route) },
-                    onMealLogHistoryClick = { navController.navigate(SkinBasketDestination.MealLogHistory.route) }
+                    onMealLogHistoryClick = { navController.navigate(SkinBasketDestination.MealLogHistory.route) },
+                    onLogout = {
+                        userProfileViewModel.logout()
+                        navController.navigate(SkinBasketDestination.Home.route) {
+                            popUpTo(SkinBasketDestination.Home.route) { inclusive = true }
+                        }
+                    }
                 )
             }
             composable(SkinBasketDestination.SkinPhotoHistory.route) {
@@ -362,6 +378,13 @@ private fun RowScope.BottomBarItem(destination: SkinBasketDestination, selected:
             unselectedTextColor = TextSecondary
         )
     )
+}
+
+@Composable
+private fun SessionRestoringSplash() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = CoralPrimary)
+    }
 }
 
 @Composable

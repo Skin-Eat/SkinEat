@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.lionideaton.data.IngredientSeedData
 import com.example.lionideaton.data.model.Ingredient
-import com.example.lionideaton.data.model.PriceBand
 import com.example.lionideaton.data.model.SkinConcern
 import com.example.lionideaton.domain.SkinScoreCalculator
 import com.example.lionideaton.ui.theme.CardWhite
@@ -69,18 +68,7 @@ private fun nutrientLabel(keyNutrient: String): String = when (keyNutrient) {
     else -> keyNutrient
 }
 
-private fun iconFor(keyNutrient: String): ImageVector = when (keyNutrient) {
-    IngredientSeedData.KEY_OMEGA3, IngredientSeedData.KEY_ZINC -> Icons.Filled.SetMeal
-    else -> Icons.Filled.Eco
-}
-
-// Placeholder pricing (KRW) derived from price_band until this is sourced from a real product API.
-private fun estimatedPrice(priceBand: PriceBand?): Int = when (priceBand) {
-    PriceBand.LOW -> 3000
-    PriceBand.MID -> 6000
-    PriceBand.HIGH -> 12000
-    null -> 5000
-}
+private fun iconFor(keyNutrient: String): ImageVector = IngredientSeedData.iconFor(keyNutrient)
 
 // Loose mapping onto the app's 4 tracked nutrient axes — mirrors SkinScoreCalculator's doc
 // comment (글당부하/항염/장벽·수분/항산화), not a clinical claim about any single concern.
@@ -194,7 +182,7 @@ fun BasketScreen(
                     }
                 },
                 onAddToBasket = {
-                    cartViewModel.addItem(ingredient.name, estimatedPrice(ingredient.priceBand), iconFor(group.keyNutrient))
+                    cartViewModel.addItem(ingredient, group.keyNutrient)
                 }
             )
         }

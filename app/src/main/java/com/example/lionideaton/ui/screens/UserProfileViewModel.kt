@@ -1,7 +1,9 @@
 package com.example.lionideaton.ui.screens
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lionideaton.data.local.SessionStore
 import com.example.lionideaton.data.model.ConstraintType
 import com.example.lionideaton.data.model.SkinConcern
 import com.example.lionideaton.data.model.SkinType
@@ -15,6 +17,7 @@ import com.example.lionideaton.data.network.UpdateMeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -32,8 +35,11 @@ sealed interface AuthUiState {
 
 // Activity-scoped shared user profile — Auth(로그인/가입), Onboarding, Home/My, Basket이 공유.
 // 백엔드 signup/login에서 받은 accessToken은 NetworkModule에 저장되고, 이후 모든 API 호출에
-// 자동으로 Authorization 헤더로 붙는다(NetworkModule.authToken 참고).
-class UserProfileViewModel : ViewModel() {
+// 자동으로 Authorization 헤더로 붙는다(NetworkModule.authToken 참고). 같은 토큰을 SessionStore
+// (DataStore)에도 저장해서 앱을 완전히 껐다 켜도 로그인이 유지되게 한다.
+class UserProfileViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val sessionStore = SessionStore(application)
 
     private val _profile = MutableStateFlow(UserProfile())
     val profile: StateFlow<UserProfile> = _profile.asStateFlow()
@@ -47,8 +53,55 @@ class UserProfileViewModel : ViewModel() {
     private val _authState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val authState: StateFlow<AuthUiState> = _authState.asStateFlow()
 
+    // 저장된 세션을 복원하는 동안 true — MainActivity가 이 시간 동안 로그인 화면을 잠깐
+    // 보여줬다 지우는 깜빡임 없이 로딩 상태를 보여줄 수 있게.
+    private val _sessionRestoring = MutableStateFlow(true)
+    val sessionRestoring: StateFlow<Boolean> = _sessionRestoring.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            restoreSession()
+            _sessionRestoring.value = false
+        }
+    }
+
+    private suspend fun restoreSession() {
+        val token = sessionStore.tokenFlow.first() ?: return
+        NetworkModule.authToken = token
+        try {
+            val me = NetworkModule.api.getMe().data ?: run {
+                NetworkModule.authToken = null
+                sessionStore.clearToken()
+                return
+            }
+            val constraints = NetworkModule.api.getConstraints().data.orEmpty()
+            _profile.value = UserProfile(
+                nickname = me.nickname,
+                skinType = me.skinType?.let { raw -> runCatching { SkinType.valueOf(raw) }.getOrNull() },
+                concerns = me.concerns.mapNotNull { raw -> runCatching { SkinConcern.valueOf(raw) }.getOrNull() },
+                constraints = constraints.mapNotNull { c ->
+                    runCatching { UserConstraintItem(ConstraintType.valueOf(c.type.uppercase()), c.ingredientName) }.getOrNull()
+                }
+            )
+            _onboardingCompleted.value = me.skinType != null
+            _isLoggedIn.value = true
+        } catch (e: Exception) {
+            // 저장된 토큰이 만료/무효한 경우 — 로그아웃 상태로 남겨두고 재로그인을 유도한다.
+            NetworkModule.authToken = null
+            sessionStore.clearToken()
+        }
+    }
+
     fun resetAuthState() {
         _authState.value = AuthUiState.Idle
+    }
+
+    fun logout() {
+        NetworkModule.authToken = null
+        _isLoggedIn.value = false
+        _onboardingCompleted.value = false
+        _profile.value = UserProfile()
+        viewModelScope.launch { sessionStore.clearToken() }
     }
 
     // HttpException(4xx/5xx)엔 우리 envelope의 {error:{message}}가 body로 들어있는데, 기본
@@ -75,6 +128,7 @@ class UserProfileViewModel : ViewModel() {
                     return@launch
                 }
                 NetworkModule.authToken = body.accessToken
+                sessionStore.saveToken(body.accessToken)
                 _profile.value = UserProfile(email = email, nickname = body.user.nickname)
                 // 가입 직후엔 온보딩을 아직 안 했으니 skinType이 항상 null로 옴 — 확정 규칙.
                 _onboardingCompleted.value = false
@@ -97,6 +151,7 @@ class UserProfileViewModel : ViewModel() {
                     return@launch
                 }
                 NetworkModule.authToken = body.accessToken
+                sessionStore.saveToken(body.accessToken)
                 _profile.value = UserProfile(
                     email = email,
                     nickname = body.user.nickname,

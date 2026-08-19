@@ -90,7 +90,8 @@ fun MyScreen(
     userProfileViewModel: UserProfileViewModel,
     mealLogViewModel: MealLogViewModel,
     onSkinPhotoHistoryClick: () -> Unit = {},
-    onMealLogHistoryClick: () -> Unit = {}
+    onMealLogHistoryClick: () -> Unit = {},
+    onLogout: () -> Unit = {}
 ) {
     val profile by userProfileViewModel.profile.collectAsState()
     val cartItems by cartViewModel.items.collectAsState()
@@ -165,6 +166,20 @@ fun MyScreen(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             myPageListItems.forEach { item -> MyPageListRow(item) }
         }
+
+        LogoutButton(onClick = onLogout)
+    }
+}
+
+@Composable
+private fun LogoutButton(onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+    ) {
+        Text(text = "로그아웃", fontWeight = FontWeight.Bold)
     }
 }
 

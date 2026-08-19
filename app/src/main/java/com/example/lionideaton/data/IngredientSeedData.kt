@@ -1,5 +1,9 @@
 package com.example.lionideaton.data
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Eco
+import androidx.compose.material.icons.filled.SetMeal
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.lionideaton.data.model.Ingredient
 import com.example.lionideaton.data.model.PriceBand
 
@@ -34,4 +38,17 @@ object IngredientSeedData {
 
     fun subsFor(keyNutrient: String, excludeNames: Set<String> = emptySet()): List<Ingredient> =
         ingredients.filter { it.keyNutrient == keyNutrient && !it.isPrimary && it.name !in excludeNames }
+
+    fun iconFor(keyNutrient: String): ImageVector = when (keyNutrient) {
+        KEY_OMEGA3, KEY_ZINC -> Icons.Filled.SetMeal
+        else -> Icons.Filled.Eco
+    }
+
+    // Placeholder pricing (KRW) derived from price_band until this is sourced from a real product API.
+    fun estimatedPrice(priceBand: PriceBand?): Int = when (priceBand) {
+        PriceBand.LOW -> 3000
+        PriceBand.MID -> 6000
+        PriceBand.HIGH -> 12000
+        null -> 5000
+    }
 }

@@ -36,6 +36,25 @@ data class UpdateMeRequest(
 // ConstraintType 값은 백엔드가 소문자(allergy/dislike)를 씀.
 data class ConstraintRequest(val type: String, val ingredientName: String)
 
+// GET /users/me/constraints 응답. type도 ConstraintRequest와 동일하게 소문자로 온다.
+data class ConstraintOut(val id: Int, val type: String, val ingredientName: String)
+
+data class IngredientOut(
+    val id: Int,
+    val name: String,
+    val keyNutrient: String,
+    val purposeTag: String,
+    val searchKeyword: String,
+    val priceBand: String?,
+    val appealNote: String?
+)
+
+data class BasketItemIn(val ingredientId: Int, val quantity: Int = 1, val reason: String? = null)
+
+data class BasketItemUpdate(val quantity: Int)
+
+data class BasketItemOut(val id: Int, val quantity: Int, val reason: String?, val ingredient: IngredientOut)
+
 data class BackendFoodOut(
     val id: Int,
     val name: String,
