@@ -23,12 +23,12 @@ private val DarkColorScheme = darkColorScheme(
         onSecondary = TextPrimary,
         tertiary = GaugeOrange,
         onTertiary = Color.White,
-        background = Color(0xFF1C1815),
-        surface = Color(0xFF241F1B),
-        surfaceVariant = Color(0xFF322B26),
-        onBackground = Color(0xFFF5EFE9),
-        onSurface = Color(0xFFF5EFE9),
-        onSurfaceVariant = Color(0xFFCFC6BE)
+        background = Color(0xFF121212),
+        surface = Color(0xFF1A1A1A),
+        surfaceVariant = Color(0xFF2A2A2A),
+        onBackground = Color(0xFFF7F7F7),
+        onSurface = Color(0xFFF7F7F7),
+        onSurfaceVariant = Color(0xFFAAAAAA)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -49,7 +49,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun LionideatonTheme(
         darkTheme: Boolean = isSystemInDarkTheme(),
-        // Keep the brand teal/cream palette consistent across devices rather than following Android 12+ wallpaper theming
+        // Keep the clear turquoise palette consistent across devices rather than following Android 12+ wallpaper theming
         dynamicColor: Boolean = false,
         content: @Composable () -> Unit
 ) {

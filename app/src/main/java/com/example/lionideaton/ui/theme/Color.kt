@@ -2,30 +2,30 @@ package com.example.lionideaton.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand palette: cream/white surfaces with a #5FDFDF teal accent
-val CreamBackground = Color(0xFFFFFBF6)
+// Hwahae-inspired clear mint / turquoise palette
+val CreamBackground = Color(0xFFF7F7F7)
 val CardWhite = Color(0xFFFFFFFF)
-val SurfaceMuted = Color(0xFFF6F1EC)
+val SurfaceMuted = Color(0xFFEEFBFB)
 
-// Deepened shade of the brand teal, used wherever text/icons need contrast against white
-val CoralPrimary = Color(0xFF2E9E9E)
-val PeachSecondary = Color(0xFFCFF6F6)
+// Brand turquoise — primary CTA / identity
+val CoralPrimary = Color(0xFF00D5CE)
+val PeachSecondary = Color(0xFFEEFBFB)
 
-val GaugeOrange = Color(0xFF2E9E9E)
-val GaugeRed = Color(0xFF5FDFDF)
-val GaugeTrack = Color(0xFFF1EAE3)
+val GaugeOrange = Color(0xFF00A5AA)
+val GaugeRed = Color(0xFF22D3D6)
+val GaugeTrack = Color(0xFFE8E8E8)
 
-val PhotoPromptBackground = Color(0xFFE3F8F8)
-val PhotoPromptAccent = Color(0xFF2E9E9E)
+val PhotoPromptBackground = Color(0xFFEEFBFB)
+val PhotoPromptAccent = Color(0xFF00A5AA)
 
 val PositiveTagBackground = Color(0xFFE1F3E6)
 val PositiveTagText = Color(0xFF3B8F55)
 
-val WarningTagBackground = Color(0xFFFBE1DD)
-val WarningTagText = Color(0xFFDD5340)
+val WarningTagBackground = Color(0xFFFFE8E8)
+val WarningTagText = Color(0xFFFF5555)
 
-val CautionTagBackground = Color(0xFFFCEBD1)
-val CautionTagText = Color(0xFFC9821E)
+val CautionTagBackground = Color(0xFFFFF3E0)
+val CautionTagText = Color(0xFFFFAA3C)
 
-val TextPrimary = Color(0xFF2B2521)
-val TextSecondary = Color(0xFF8A8078)
+val TextPrimary = Color(0xFF111111)
+val TextSecondary = Color(0xFF666666)
